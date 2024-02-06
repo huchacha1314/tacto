@@ -1,4 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
+# tacto 传感器 如何在pybullet环境中获取tactile image 数据
+
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -38,8 +40,8 @@ def get_omnitact_config_path():
 
 @dataclass
 class Link:
-    obj_id: int  # pybullet ID
-    link_id: int  # pybullet link ID (-1 means base)
+    obj_id: int  # pybullet ID 一个物体可能由很多 link组成
+    link_id: int  # pybullet link ID (-1 means base) 所以link id + object id 唯一确定朋友不聊了天环境中的 id
     cid: int  # physicsClientId
 
     def get_pose(self):
@@ -105,7 +107,7 @@ class Sensor:
     @property
     def background(self):
         return self.renderer.background
-
+    # 将 object / 的某个link 设置为.camera类型
     def add_camera(self, obj_id, link_ids):
         """
         Add camera into tacto
@@ -170,7 +172,7 @@ class Sensor:
                 position=position,  # [-0.015, 0, 0.0235],
                 orientation=orientation,  # [0, 0, 0],
             )
-
+    #将某个link 添加到pybullet环境中
     def add_body(self, body):
         self.add_object(
             body.urdf_path, body.id, globalScaling=body.global_scaling or 1.0
@@ -207,14 +209,17 @@ class Sensor:
         Update the pose of each objects registered in tacto simulator
         """
         for obj_name in self.objects.keys():
+            # objects是一个列表{}
             self.object_poses[obj_name] = self.objects[obj_name].get_pose()
 
+    
+    #获取接触点的法向信息
     def get_force(self, cam_name):
         # Load contact force
 
         obj_id = self.cameras[cam_name].obj_id
         link_id = self.cameras[cam_name].link_id
-
+        #获取接触点的各种信息
         pts = p.getContactPoints(
             bodyA=obj_id, linkIndexA=link_id, physicsClientId=self.cid
         )
@@ -232,10 +237,14 @@ class Sensor:
             if obj_name not in self.objects:
                 continue
 
-            # Accumulate normal forces
+            # Accumulate normal forces 接触点的法相信息
             self.normal_forces[cam_name][obj_name] += pt[9]
 
         return self.normal_forces[cam_name]
+        '''
+        self.normal_forces[cam_name][obj_name] 表示在特定相机下特定物体受到的法向接触力 
+        self.normal_forces[cam_name] 是一个字典，它存储了特定相机下所有物体受到的法向接触力，键是物体的名称，而值是该物体受到的接触力总和。
+        '''
 
     @property
     def static(self):
@@ -255,20 +264,24 @@ class Sensor:
         """
         Render tacto images from each camera's view.
         """
-
+        #首先获取最新的位置信息
         self._update_object_poses()
 
         colors = []
         depths = []
-
+        #遍历所有的摄像机
         for i in range(self.nb_cam):
             cam_name = "cam" + str(i)
 
             # get the contact normal forces
+            #获取对应相机的法向量list
             normal_forces = self.get_force(cam_name)
 
             if normal_forces:
+                #对获取到了法向的相机
+                #获取相机的位置和方位
                 position, orientation = self.cameras[cam_name].get_pose()
+                # 补充信息： self.renderer = Renderer(width, height, background, config_path)
                 self.renderer.update_camera_pose(position, orientation)
                 color, depth = self.renderer.render(self.object_poses, normal_forces)
 
@@ -283,6 +296,8 @@ class Sensor:
 
         return colors, depths
 
+    
+    #将深度信息转变-> RGB image
     def _depth_to_color(self, depth):
         gray = (np.clip(depth / self.zrange, 0, 1) * 255).astype(np.uint8)
         return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
