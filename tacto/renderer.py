@@ -3,7 +3,47 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+'''
 
+1. `euler2matrix: 将欧拉角转换为变换矩阵。
+
+2. `__init__: 初始化渲染器，设置渲染器的宽度、高度、背景图像和配置文件路径。
+
+3. `_init_pyrender(self)`: 初始化 pyrender 相关对象，创建场景、相机、光源等。
+
+4. `_init_gel(self)`: 在场景中添加胶体表面。
+
+5. `_generate_gel_trimesh(self)`: 根据配置文件生成胶体表面的三角网格表示。
+
+6. `_generate_trimesh_from_depth(self, depth)`: 根据深度信息生成三角网格表示。
+
+7. `_init_camera(self)`: 初始化相机，根据配置文件设置相机参数。
+
+8. `_init_light(self)`: 初始化光源，根据配置文件设置光源参数。
+
+9. `add_object(self, objTrimesh, obj_name, position=[0, 0, 0], orientation=[0, 0, 0])`: 向场景中添加物体。
+
+10. `update_camera_pose(self, position, orientation)`: 更新相机的位置和方向。
+
+11. `update_object_pose(self, obj_name, position, orientation)`: 更新物体的位置和方向。
+
+12. `update_light(self, lightIDList)`: 更新光源的位置和颜色。
+
+13. `_add_noise(self, color)`: 向 RGB 图像添加高斯噪声。
+
+14. `_calibrate(self, color, camera_index)`: 根据配置文件进行背景校正。
+
+15. `set_background(self, background)`: 设置渲染器的背景图像。
+
+16. `adjust_with_force(self, camera_pos, camera_ori, normal_forces, object_poses)`: 根据力信息调整物体位置。
+
+17. `_post_process(self, color, depth, camera_index, noise=True, calibration=True)`: 对渲染结果进行后处理，包括添加噪声和进行背景校正。
+
+18. `render(self, object_poses=None, normal_forces=None, noise=True, calibration=True)`: 渲染场景，并返回颜色图像和深度图像。
+
+19. `render_from_depth(self, depth, noise=True, calibration=True, scale=1.0)`: 根据深度信息渲染图像。
+
+'''
 """
 Set backend platform for OpenGL render (pyrender.OffscreenRenderer)
 - Pyglet, the same engine that runs the pyrender viewer. This requires an active
@@ -534,7 +574,10 @@ class Renderer:
         if noise:
             color = self._add_noise(color)
         return color, depth
-
+    '''
+    render 函数接收的是整个场景的信息，包括物体的位置、光源等，并根据整个场景的信息进行渲染。
+    render_from_depth 函数接收的是单个深度图像作为输入，并根据这个深度图像生成渲染结果
+    '''
     def render(
         self, object_poses=None, normal_forces=None, noise=True, calibration=True
     ):
@@ -548,10 +591,10 @@ class Renderer:
         colors, depths = [], []
 
         for i in range(self.nb_cam):
-            # Set the main camera node for rendering
+            # Set the main camera node for rendering 更新相机主节点
             self.scene.main_camera_node = self.camera_nodes[i]
 
-            # Set up corresponding lights (max: 8)
+            # Set up corresponding lights (max: 8) 更新光源
             self.update_light(self.cam_light_ids[i])
 
             # Adjust contact based on force
@@ -564,6 +607,9 @@ class Renderer:
                 self.adjust_with_force(
                     camera_pos, camera_ori, normal_forces, object_poses,
                 )
+
+            # 提示信息：self.r = pyrender.OffscreenRenderer(self.width, self.height)
+            # 对现有的场景进行渲染，从而得到颜色图像和 深度图像
 
             color, depth = self.r.render(self.scene, flags=self.flags_render)
             color, depth = self._post_process(color, depth, i, noise, calibration)
